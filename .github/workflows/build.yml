@@ -1,0 +1,42 @@
+name: Build ICE IT
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract source
+        run: |
+          mkdir source
+          unzip -q ICE-IT.zip -d source
+          find source -name gradlew -type f
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Build
+        run: |
+          cd source
+          GRADLEW=$(find . -name gradlew -type f | head -n 1)
+          chmod +x "$GRADLEW"
+          cd "$(dirname "$GRADLEW")"
+          printf '\n\ntasks.withType<Jar>().configureEach {\n    duplicatesStrategy = DuplicatesStrategy.EXCLUDE\n}\n' >> build.gradle.kts
+          ./gradlew --no-daemon build
+
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: ICE-IT-JAR
+          path: source/**/build/libs/*.jar
+          if-no-files-found: error
